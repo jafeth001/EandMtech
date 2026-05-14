@@ -17,63 +17,47 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/tasks")
 @RequiredArgsConstructor
-@Tag(name = "Task Management", description = "Task Management APIs")
+@Tag(name = "Task Management", description = "Task CRUD and workflow APIs")
 public class TaskController {
 
     private final TaskService taskService;
 
-    @Operation(
-            summary = "Create Task",
-            description = "Supervisor creates a new task"
-    )
+    @Operation(summary = "Create Task", description = "Supervisor creates a new task (CREATED status)")
     @PostMapping
     @PreAuthorize("hasRole('SUPERVISOR')")
     public ResponseEntity<Task> createTask(
             @RequestBody TaskRequest request,
             Authentication authentication) {
-
-        return ResponseEntity.ok(
-                taskService.createTask(request, authentication.getName()));
+        return ResponseEntity.ok(taskService.createTask(request, authentication.getName()));
     }
 
-    @Operation(
-            summary = "Assign Task",
-            description = "Supervisor assigns task to employee"
-    )
+    @Operation(summary = "Assign Task", description = "Supervisor assigns a task to an employee (CREATED → ASSIGNED)")
     @PutMapping("/{taskId}/assign/{employeeId}")
     @PreAuthorize("hasRole('SUPERVISOR')")
     public ResponseEntity<Task> assignTask(
             @PathVariable Long taskId,
             @PathVariable Long employeeId) {
-
-        return ResponseEntity.ok(
-                taskService.assignTask(taskId, employeeId));
+        return ResponseEntity.ok(taskService.assignTask(taskId, employeeId));
     }
 
-    @Operation(
-            summary = "Update Task Status",
-            description = "Employee or supervisor updates task workflow status"
-    )
+    @Operation(summary = "Update Task Status", description = "Advance task through workflow stages")
     @PutMapping("/{taskId}/status")
     public ResponseEntity<Task> updateStatus(
             @PathVariable Long taskId,
             @RequestParam TaskStatus status,
             Authentication authentication) {
-
-        return ResponseEntity.ok(
-                taskService.updateStatus(
-                        taskId,
-                        status,
-                        authentication.getName()));
+        return ResponseEntity.ok(taskService.updateStatus(taskId, status, authentication.getName()));
     }
 
-    @Operation(
-            summary = "Get All Tasks",
-            description = "Returns all tasks in the system"
-    )
+    @Operation(summary = "Get Tasks", description = "Supervisors see all tasks; employees see only their assigned tasks")
     @GetMapping
-    public ResponseEntity<List<Task>> getAllTasks() {
+    public ResponseEntity<List<Task>> getTasks(Authentication authentication) {
+        return ResponseEntity.ok(taskService.getTasksForUser(authentication.getName()));
+    }
 
-        return ResponseEntity.ok(taskService.getAllTasks());
+    @Operation(summary = "Get Task by ID")
+    @GetMapping("/{taskId}")
+    public ResponseEntity<Task> getTask(@PathVariable Long taskId) {
+        return ResponseEntity.ok(taskService.getTaskById(taskId));
     }
 }

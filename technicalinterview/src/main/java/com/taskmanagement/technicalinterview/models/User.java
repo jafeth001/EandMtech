@@ -1,5 +1,6 @@
 package com.taskmanagement.technicalinterview.models;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.taskmanagement.technicalinterview.enums.Role;
 import jakarta.persistence.*;
 import lombok.*;
@@ -22,6 +23,7 @@ public class User {
     @Column(unique = true)
     private String email;
 
+    @JsonIgnore  // never expose hashed password over API
     private String password;
 
     @Enumerated(EnumType.STRING)
