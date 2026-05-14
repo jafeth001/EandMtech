@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "build": "esbuild src/main/resources/static/assets/main.js --bundle --outfile=src/main/resources/static/bundle.js --format=iife --external:fs --external:path",
+    "build": "esbuild src/main/resources/static/assets/main.js --bundle --outfile=src/main/resources/static/bundle.js --format=iife --loader:.js=jsx",
     "dev": "npm run build -- --watch"
   },
   "dependencies": {
