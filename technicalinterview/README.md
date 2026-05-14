@@ -136,6 +136,7 @@ To test authenticated endpoints:
 
 ---
 
+
 ## Tech Stack
 
 | Layer    | Technology                              |
@@ -146,3 +147,8 @@ To test authenticated endpoints:
 | Docs     | SpringDoc OpenAPI (Swagger UI)          |
 | Frontend | React 18, Vite                          |
 | Auth     | JWT Bearer tokens (24h expiry)          |
+|          |                                         |
+
+## Screen Shots
+![img.png](img.png)
+![img_1.png](img_1.png)
