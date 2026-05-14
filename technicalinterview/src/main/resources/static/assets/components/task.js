@@ -1,5 +1,16 @@
 import { useState } from 'react';
-import { STATUS_ORDER, STATUS_META } from './task';
+import { apiFetch, useAuth } from './auth';
+
+// Task status workflow
+export const STATUS_ORDER = ["CREATED", "ASSIGNED", "IN_PROGRESS", "RESOLVED", "DONE"];
+
+export const STATUS_META = {
+  CREATED: { label: "Created", color: "#f59e0b", bg: "#78350f" },
+  ASSIGNED: { label: "Assigned", color: "#3b82f6", bg: "#1e3a8a" },
+  IN_PROGRESS: { label: "In Progress", color: "#8b5cf6", bg: "#4c1d95" },
+  RESOLVED: { label: "Resolved", color: "#34d399", bg: "#064e3b" },
+  DONE: { label: "Done", color: "#10b981", bg: "#065f46" },
+};
 
 // Status Badge 
 export function Badge({ status }) {
@@ -29,8 +40,6 @@ export function TaskCard({ task, onStatusChange, onAssign, employees, isSupervis
 
   const currentIdx = STATUS_ORDER.indexOf(task.status);
   const nextStatus = STATUS_ORDER[currentIdx + 1];
-  const canAdvance = nextStatus && !(isSupervisor && nextStatus === "ASSIGNED") &&
-    !(isSupervisor && task.status === "RESOLVED" ? false : !isSupervisor && ["CREATED", "DONE"].includes(task.status));
 
   // Employees can: ASSIGNED -> IN_PROGRESS, IN_PROGRESS -> RESOLVED
   // Supervisors can: CREATED -> ASSIGNED (via assign), RESOLVED -> DONE

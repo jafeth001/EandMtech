@@ -44,9 +44,10 @@ public class SecurityConfig {
                 .csrf(AbstractHttpConfigurer::disable)
                 .cors(cors -> cors.configurationSource(request -> {
                     var c = new CorsConfiguration();
-                    c.setAllowedOrigins(List.of("http://localhost:5173"));
+                    c.setAllowedOrigins(List.of("http://localhost:8080", "http://localhost:5173"));
                     c.setAllowedMethods(List.of("*"));
                     c.setAllowedHeaders(List.of("*"));
+                    c.setAllowCredentials(true);
                     return c;
                 }))
                 .sessionManagement(session -> session
