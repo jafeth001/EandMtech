@@ -4,8 +4,10 @@ import com.taskmanagement.technicalinterview.config.security.JwtService;
 import com.taskmanagement.technicalinterview.dto.AuthResponse;
 import com.taskmanagement.technicalinterview.dto.CreateUserRequest;
 import com.taskmanagement.technicalinterview.dto.LoginRequest;
+import com.taskmanagement.technicalinterview.dto.TaskRequest;
 import com.taskmanagement.technicalinterview.models.User;
 import com.taskmanagement.technicalinterview.repository.UserRepository;
+import com.taskmanagement.technicalinterview.service.TaskService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -20,6 +22,7 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final AuthenticationManager authenticationManager;
     private final JwtService jwtService;
+    private final TaskService taskService;
 
     public void register(CreateUserRequest request) {
 
@@ -41,7 +44,9 @@ public class AuthService {
                         request.getPassword()));
 
         String token = jwtService.generateToken(request.getEmail());
+        User user = userRepository.findByEmail(request.getEmail())
+                .orElseThrow(() -> new IllegalStateException("User not found after login"));
 
-        return new AuthResponse(token);
+        return new AuthResponse(token, user.getEmail(), user.getFullName(), user.getRole().name());
     }
 }

@@ -114,7 +114,7 @@ function Badge({ status }) {
 }
 
 // ── Task Card ─────────────────────────────────────────────────────────────────
-function TaskCard({ task, onStatusChange, onAssign, employees, isSupervisor, notify }) {
+function TaskCard({ task, onStatusChange, onAssign, employees, isSupervisor, notify, isSelected, onSelect }) {
   const [assigning, setAssigning] = useState(false);
   const [selEmp, setSelEmp] = useState("");
   const [updating, setUpdating] = useState(false);
@@ -158,7 +158,12 @@ function TaskCard({ task, onStatusChange, onAssign, employees, isSupervisor, not
   }
 
   return (
-      <div style={styles.card}>
+      <div style={{
+        ...styles.card,
+        borderColor: isSelected ? "#3b82f6" : "#1e293b",
+        boxShadow: isSelected ? "0 0 0 1px rgba(59, 130, 246, 0.35)" : "none",
+        cursor: onSelect ? "pointer" : "default",
+      }} onClick={onSelect}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10 }}>
           <div style={{ flex: 1 }}>
             <div style={styles.cardTitle}>{task.title}</div>
@@ -377,6 +382,9 @@ function Dashboard({ user, onLogout, notify }) {
   const [showCreate, setShowCreate] = useState(false);
   const [showEmployee, setShowEmployee] = useState(false);
   const [showUpload, setShowUpload] = useState(false);
+  const [selectedTask, setSelectedTask] = useState(null);
+  const [assigningTask, setAssigningTask] = useState(false);
+  const [selectedEmployee, setSelectedEmployee] = useState("");
 
   useEffect(() => {
     loadTasks();
@@ -387,7 +395,8 @@ function Dashboard({ user, onLogout, notify }) {
     setLoading(true);
     try {
       const data = await apiFetch("/tasks", {}, token);
-      setTasks(data);
+      const taskList = Array.isArray(data) ? data : (data?.content ?? []);
+      setTasks(taskList);
     } catch (err) {
       notify(err.message, "error");
     } finally {
@@ -399,8 +408,9 @@ function Dashboard({ user, onLogout, notify }) {
     try {
       // Backend may not have a /users endpoint; we derive employees from tasks
       const data = await apiFetch("/tasks", {}, token);
+      const taskList = Array.isArray(data) ? data : (data?.content ?? []);
       const empMap = {};
-      data.forEach(t => {
+      taskList.forEach(t => {
         if (t.assignedTo) empMap[t.assignedTo.id] = t.assignedTo;
         if (t.createdBy) {
           // collect non-supervisors
@@ -410,7 +420,8 @@ function Dashboard({ user, onLogout, notify }) {
     } catch {}
   }
 
-  const myTasks = isSupervisor ? tasks : tasks.filter(t => t.assignedTo?.email === user.email);
+  const safeTasks = Array.isArray(tasks) ? tasks : [];
+  const myTasks = isSupervisor ? safeTasks : safeTasks.filter(t => t.assignedTo?.email === user.email);
   const filtered = filter === "ALL" ? myTasks : myTasks.filter(t => t.status === filter);
 
   // Stats
@@ -419,6 +430,34 @@ function Dashboard({ user, onLogout, notify }) {
 
   function updateTask(updated) {
     setTasks(prev => prev.map(t => t.id === updated.id ? updated : t));
+    setSelectedTask(prev => prev?.id === updated.id ? updated : prev);
+  }
+
+  async function handleSelectedAdvance() {
+    if (!selectedTask) return;
+    const currentIdx = STATUS_ORDER.indexOf(selectedTask.status);
+    const nextStatus = STATUS_ORDER[currentIdx + 1];
+    if (!nextStatus) return;
+    try {
+      const updated = await apiFetch(`/tasks/${selectedTask.id}/status?status=${nextStatus}`, { method: "PUT" }, token);
+      updateTask(updated);
+      notify(`Task moved to ${STATUS_META[nextStatus].label}`);
+    } catch (err) {
+      notify(err.message, "error");
+    }
+  }
+
+  async function handleSelectedAssign() {
+    if (!selectedTask || !selectedEmployee) return;
+    try {
+      const updated = await apiFetch(`/tasks/${selectedTask.id}/assign/${selectedEmployee}`, { method: "PUT" }, token);
+      updateTask(updated);
+      setAssigningTask(false);
+      setSelectedEmployee("");
+      notify("Task assigned successfully");
+    } catch (err) {
+      notify(err.message, "error");
+    }
   }
 
   return (
@@ -458,7 +497,7 @@ function Dashboard({ user, onLogout, notify }) {
           </div>
 
           {/* Actions */}
-          <div style={{ padding: "16px 0", display: "flex", flexDirection: "column", gap: 8 }}>
+          <div style={{ padding: "16px 0", display: "flex", flexDirection: "column", gap: 12, flex: 1, overflowY: "auto" }}>
             <div style={styles.sideLabel}>Actions</div>
             {isSupervisor && (
                 <>
@@ -467,6 +506,43 @@ function Dashboard({ user, onLogout, notify }) {
                 </>
             )}
             <button style={styles.sideBtn} onClick={() => setShowUpload(true)}>↑ Upload File</button>
+            
+            {/* Update Task Section */}
+            {selectedTask && (
+                <div style={{ ...styles.updateSidebar, marginTop: 12 }}>
+                  <div style={{ color: "#94a3b8", fontSize: 10, fontFamily: "'DM Mono', monospace", letterSpacing: "0.15em", textTransform: "uppercase", marginBottom: 8 }}>Selected Task</div>
+                  <div style={{ fontSize: 12, color: "#f1f5f9", fontWeight: 600, marginBottom: 8, wordBreak: "break-word" }}>{selectedTask.title}</div>
+                  <div style={{ fontSize: 11, color: "#64748b", marginBottom: 8 }}>
+                    <div><strong>Status:</strong> {STATUS_META[selectedTask.status]?.label}</div>
+                    <div style={{ marginTop: 4 }}><strong>Assigned:</strong> {selectedTask.assignedTo?.fullName || selectedTask.assignedTo?.email || "Unassigned"}</div>
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                    {isSupervisor && selectedTask.status === "CREATED" && (
+                        assigningTask ? (
+                            <>
+                              <select style={{ ...styles.input, padding: "5px 8px", fontSize: 12 }}
+                                      value={selectedEmployee}
+                                      onChange={e => setSelectedEmployee(e.target.value)}>
+                                <option value="">Pick employee…</option>
+                                {employees.map(e => <option key={e.id} value={e.id}>{e.fullName || e.email}</option>)}
+                              </select>
+                              <button style={{ ...styles.btn, ...styles.btnPrimary, fontSize: 12, padding: "6px 10px" }} onClick={handleSelectedAssign} disabled={!selectedEmployee}>Assign</button>
+                              <button style={{ ...styles.btn, fontSize: 12, padding: "6px 10px" }} onClick={() => { setAssigningTask(false); setSelectedEmployee(""); }}>Cancel</button>
+                            </>
+                        ) : (
+                            <button style={{ ...styles.btn, ...styles.btnPrimary, fontSize: 12, padding: "6px 10px" }} onClick={() => setAssigningTask(true)}>Assign Task</button>
+                        )
+                    )}
+                    {STATUS_ORDER.indexOf(selectedTask.status) < STATUS_ORDER.length - 1 && (
+                        <button style={{ ...styles.btn, ...styles.btnAccent, fontSize: 12, padding: "6px 10px" }} onClick={handleSelectedAdvance}>
+                          Mark as {STATUS_META[STATUS_ORDER[STATUS_ORDER.indexOf(selectedTask.status) + 1]]?.label}
+                        </button>
+                    )}
+                    <button style={{ ...styles.btn, fontSize: 12, padding: "6px 10px" }} onClick={() => setSelectedTask(null)}>Clear</button>
+                  </div>
+                </div>
+            )}
+            
             <button style={{ ...styles.sideBtn, color: "#f87171", marginTop: "auto" }} onClick={onLogout}>Sign Out</button>
           </div>
         </aside>
@@ -497,15 +573,17 @@ function Dashboard({ user, onLogout, notify }) {
               </div>
           ) : (
               <div style={styles.grid}>
-                {filtered.map(task => (
+                {filtered.map((task, index) => (
                     <TaskCard
-                        key={task.id}
+                        key={task.id ?? `${task.title || "task"}-${index}`}
                         task={task}
                         onStatusChange={updateTask}
                         onAssign={updated => { updateTask(updated); loadEmployees(); }}
                         employees={employees}
                         isSupervisor={isSupervisor}
                         notify={notify}
+                        isSelected={selectedTask?.id === task.id}
+                        onSelect={() => setSelectedTask(task)}
                     />
                 ))}
               </div>
@@ -609,6 +687,7 @@ const styles = {
     width: 240, background: "#0f172a", borderRight: "1px solid #1e293b",
     display: "flex", flexDirection: "column", padding: "24px 16px", flexShrink: 0,
     position: "sticky", top: 0, height: "100vh", overflowY: "auto",
+    overflow: "hidden",
   },
   sideTop: { paddingBottom: 20, borderBottom: "1px solid #1e293b", display: "flex", alignItems: "center", gap: 12 },
   sideLabel: { color: "#334155", fontSize: 10, fontFamily: "'DM Mono', monospace", letterSpacing: "0.15em", textTransform: "uppercase", marginBottom: 8, marginTop: 4 },
@@ -634,6 +713,26 @@ const styles = {
   card: {
     background: "#0f172a", border: "1px solid #1e293b", borderRadius: 12,
     padding: "18px 18px", transition: "border-color 0.2s, transform 0.15s",
+  },
+  updateSection: {
+    background: "#0f172a", border: "1px solid #1e293b", borderRadius: 14,
+    padding: 20, marginBottom: 20,
+  },
+  updateHeader: {
+    color: "#f8fafc", fontSize: 16, fontWeight: 700,
+    fontFamily: "'DM Mono', monospace", marginBottom: 14,
+  },
+  updateBody: {
+    display: "flex", flexDirection: "column", gap: 10,
+    color: "#cbd5e1", fontFamily: "'DM Mono', monospace",
+  },
+  updateRow: {
+    display: "flex", gap: 6, alignItems: "baseline",
+    fontSize: 13,
+  },
+  updateEmpty: {
+    padding: 24, color: "#94a3b8", fontFamily: "'DM Mono', monospace",
+    border: "1px dashed #334155", borderRadius: 10,
   },
   cardTitle: { color: "#f1f5f9", fontWeight: 700, fontSize: 15, marginBottom: 4 },
   cardDesc: { color: "#64748b", fontSize: 13, lineHeight: 1.5 },

@@ -1,4 +1,4 @@
-package com.fintech.TaskManagement.service;
+package com.taskmanagement.technicalinterview.service;
 
 import lombok.SneakyThrows;
 import org.springframework.stereotype.Service;

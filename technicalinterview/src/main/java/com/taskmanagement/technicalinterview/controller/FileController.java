@@ -1,6 +1,6 @@
-package com.fintech.TaskManagement.controller;
+package com.taskmanagement.technicalinterview.controller;
 
-import com.fintech.TaskManagement.service.FileService;
+import com.taskmanagement.technicalinterview.service.FileService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
