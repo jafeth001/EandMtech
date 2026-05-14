@@ -4,8 +4,10 @@ import com.taskmanagement.technicalinterview.dto.TaskRequest;
 import com.taskmanagement.technicalinterview.enums.TaskStatus;
 import com.taskmanagement.technicalinterview.models.Task;
 import com.taskmanagement.technicalinterview.models.TaskHistory;
+import com.taskmanagement.technicalinterview.models.User;
 import com.taskmanagement.technicalinterview.repository.TaskHistoryRepository;
 import com.taskmanagement.technicalinterview.repository.TaskRepository;
+import com.taskmanagement.technicalinterview.repository.UserRepository;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -19,18 +21,24 @@ import java.util.List;
 public class TaskService {
 
     private final TaskRepository taskRepository;
+    private final UserRepository userRepository;
     private final TaskHistoryRepository historyRepository;
 
     /**
-     * CREATE TASK
+     * Create Task
      */
-    public Task createTask(TaskRequest request) {
+    public Task createTask(TaskRequest request, String creatorEmail) {
+
+        // Get creator by email
+        User creator = userRepository.findByEmail(creatorEmail)
+                .orElseThrow(() ->
+                        new IllegalArgumentException("Creator user not found"));
 
         Task task = Task.builder()
                 .title(request.getTitle())
                 .description(request.getDescription())
                 .status(TaskStatus.CREATED)
-                .createdById(1L) // temporary hardcoded supervisor
+                .createdBy(creator)
                 .createdAt(LocalDateTime.now())
                 .updatedAt(LocalDateTime.now())
                 .build();
@@ -39,7 +47,7 @@ public class TaskService {
     }
 
     /**
-     * ASSIGN TASK TO EMPLOYEE
+     * Assign Task To Employee
      */
     public Task assignTask(Long taskId, Long employeeId) {
 
@@ -47,7 +55,11 @@ public class TaskService {
                 .orElseThrow(() ->
                         new RuntimeException("Task not found"));
 
-        task.setAssignedToId(employeeId);
+        User employee = userRepository.findById(employeeId)
+                .orElseThrow(() ->
+                        new RuntimeException("Employee not found"));
+
+        task.setAssignedTo(employee);
         task.setStatus(TaskStatus.ASSIGNED);
         task.setUpdatedAt(LocalDateTime.now());
 
@@ -55,7 +67,7 @@ public class TaskService {
     }
 
     /**
-     * UPDATE TASK STATUS
+     * Update Task Status
      */
     public Task updateStatus(Long taskId,
                              TaskStatus newStatus,
@@ -89,15 +101,16 @@ public class TaskService {
     }
 
     /**
-     * GET ALL TASKS
+     * Get All Tasks
      */
     public List<Task> getAllTasks() {
-
-        return taskRepository.findAll();
+        List<Task> tasks = taskRepository.findAll();
+        System.out.println("Found " + tasks.size() + " tasks in repository");
+        return tasks;
     }
 
     /**
-     * GET EMPLOYEE TASKS
+     * Get Tasks Assigned To Employee
      */
     public List<Task> getEmployeeTasks(Long employeeId) {
 
@@ -105,12 +118,11 @@ public class TaskService {
     }
 
     /**
-     * VALIDATE TASK FLOW
+     * Validate Workflow Transitions
      */
     private void validateFlow(TaskStatus current,
                               TaskStatus next) {
 
-        // CREATED -> ASSIGNED
         if (current == TaskStatus.CREATED
                 && next != TaskStatus.ASSIGNED) {
 
@@ -118,7 +130,6 @@ public class TaskService {
                     "Invalid transition from CREATED");
         }
 
-        // ASSIGNED -> IN_PROGRESS
         if (current == TaskStatus.ASSIGNED
                 && next != TaskStatus.IN_PROGRESS) {
 
@@ -126,7 +137,6 @@ public class TaskService {
                     "Invalid transition from ASSIGNED");
         }
 
-        // IN_PROGRESS -> RESOLVED
         if (current == TaskStatus.IN_PROGRESS
                 && next != TaskStatus.RESOLVED) {
 
@@ -134,7 +144,6 @@ public class TaskService {
                     "Invalid transition from IN_PROGRESS");
         }
 
-        // RESOLVED -> DONE
         if (current == TaskStatus.RESOLVED
                 && next != TaskStatus.DONE) {
 

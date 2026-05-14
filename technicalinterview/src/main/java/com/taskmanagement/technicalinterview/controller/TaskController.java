@@ -33,7 +33,7 @@ public class TaskController {
             Authentication authentication) {
 
         return ResponseEntity.ok(
-                taskService.createTask(request));
+                taskService.createTask(request, authentication.getName()));
     }
 
     @Operation(

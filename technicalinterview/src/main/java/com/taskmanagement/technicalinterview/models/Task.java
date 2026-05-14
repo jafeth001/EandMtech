@@ -1,20 +1,17 @@
 package com.taskmanagement.technicalinterview.models;
 
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.taskmanagement.technicalinterview.enums.TaskStatus;
 import jakarta.persistence.*;
 import lombok.*;
 
 import java.time.LocalDateTime;
-
 @Entity
-@Table(name = "tasks")
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
+@Table(name = "tasks")
 public class Task {
 
     @Id
@@ -28,10 +25,13 @@ public class Task {
     @Enumerated(EnumType.STRING)
     private TaskStatus status;
 
-    // TEMPORARILY REMOVE RELATIONSHIPS
-    private Long createdById;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "assigned_to")
+    private User assignedTo;
 
-    private Long assignedToId;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "created_by")
+    private User createdBy;
 
     private LocalDateTime createdAt;
 
